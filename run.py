@@ -1,6 +1,8 @@
 import os
+import time
+import json
 import torch
-import random
+import hashlib
 import argparse
 import numpy as np
 
@@ -17,6 +19,7 @@ def args_parser():
     parser.add_argument("--model_path", type=str, default="stabilityai/stable-diffusion-2-1")
     parser.add_argument("--dataset_path", type=str, default="../fid_outputs/coco")
     parser.add_argument("--output_path", type=str, default="outputs")
+    parser.add_argument("--sub_path", type=str, default=None)
     parser.add_argument("--num_inference_steps", type=int, default=50)
     parser.add_argument("--num_inversion_steps", type=int, default=10)
     parser.add_argument("--guidance_scale", type=float, default=7.5)
@@ -57,6 +60,15 @@ def main():
 
     dataset, prompt_key = get_dataset(args)
 
+    if args.sub_path is None:
+        sub_path = hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
+    else:
+        sub_path = args.sub_path
+    image_path = os.path.join(args.output_path, sub_path)
+    os.makedirs(image_path, exist_ok=True)
+
+    ksr = 0
+    bit_acc = 0
     for i in range(args.test_number):
         seed = i + args.gen_seed
 
@@ -66,8 +78,6 @@ def main():
         key_channel, k = key_channel_enhance(args.swa_M, args.swa_R)
         init_latents_w = gs.create_watermark_and_return_w()
         shuffled_init_latents_w = FY_shuffle(init_latents_w, k)
-        reversed_init_latents_w = FY_inverse_shuffle(shuffled_init_latents_w, k)
-        print(reversed_init_latents_w.flatten()[:10], init_latents_w.flatten()[:10])
 
         init_latents = torch.cat([shuffled_init_latents_w, key_channel.unsqueeze(0).cuda()], dim=1).half().cuda()
         outputs = pipe(
@@ -80,6 +90,7 @@ def main():
             latents=init_latents,
         )
         image_w = outputs.images[0]
+        image_w.save(os.path.join(image_path, f"{i:05d}.png"))
 
         image_w_distortion = image_distortion(image_w, seed, args)
 
@@ -101,6 +112,11 @@ def main():
         reversed_latents_w = reversed_latents_w.to(text_embeddings.dtype).to("cuda")
         acc_metric = gs.eval_watermark(reversed_latents_w)
         print(k_check, acc_metric)
+        ksr += k_check
+        bit_acc += acc_metric
+    print(ksr / args.test_number, bit_acc / args.test_number)
+    with open(os.path.join(image_path, "result.json"), "w") as f:
+        json.dump({"ksr": ksr / args.test_number, "bit_acc": bit_acc / args.test_number}, f)
 
 if __name__ == "__main__":
     main()

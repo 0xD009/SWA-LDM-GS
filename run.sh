@@ -1,0 +1,9 @@
+python run.py --test_number 100 --jpeg_ratio 25
+python run.py --test_number 100 --random_crop_ratio 0.6
+python run.py --test_number 100 --random_drop_ratio 0.8
+python run.py --test_number 100 --gaussian_blur_r 4
+python run.py --test_number 100 --median_blur_k 7
+python run.py --test_number 100 --resize_ratio 0.25
+python run.py --test_number 100 --gaussian_std 0.05
+python run.py --test_number 100 --sp_prob 0.05
+python run.py --test_number 100 --brightness_factor 6
