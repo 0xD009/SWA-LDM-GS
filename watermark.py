@@ -48,8 +48,11 @@ class Gaussian_Shading_chacha:
         z = abs_z * m.reshape(1, 3, 64, 64)
         return z.cuda().half()
 
-    def create_watermark_and_return_w(self):
-        self.watermark = torch.randint(0, 2, [1, self.ch_num // self.ch, 64 // self.hw, 64 // self.hw]).cuda()
+    def create_watermark_and_return_w(self, watermark=None):
+        if watermark is None:
+            self.watermark = torch.randint(0, 2, [1, self.ch_num // self.ch, 64 // self.hw, 64 // self.hw]).cuda()
+        else:
+            self.watermark = watermark
         sd = self.watermark.repeat(1,self.ch,self.hw,self.hw)
         m = self.stream_key_encrypt(sd.flatten().cpu().numpy())
         w = self.truncSampling(m)

@@ -73,7 +73,7 @@ def main():
         seed = i + args.gen_seed
 
         prompt = dataset[i][prompt_key]
-        text_embeddings = pipe.get_text_embedding(prompt)
+        null_text_embeddings = pipe.get_text_embedding("")
 
         key_channel, k = key_channel_enhance(args.swa_M, args.swa_R)
         init_latents_w = gs.create_watermark_and_return_w()
@@ -94,11 +94,11 @@ def main():
 
         image_w_distortion = image_distortion(image_w, seed, args)
 
-        image_w_distortion = transform_img(image_w_distortion).unsqueeze(0).to(text_embeddings.dtype).to("cuda")
+        image_w_distortion = transform_img(image_w_distortion).unsqueeze(0).to(null_text_embeddings.dtype).to("cuda")
         image_latents_w = pipe.get_image_latents(image_w_distortion, sample=False)
         reversed_latents_w = pipe.forward_diffusion(
             latents=image_latents_w,
-            text_embeddings=text_embeddings,
+            text_embeddings=null_text_embeddings,
             guidance_scale=1,
             num_inference_steps=args.num_inversion_steps,
         )
@@ -109,7 +109,7 @@ def main():
 
         reversed_latents_w = FY_inverse_shuffle(reversed_latents_w[0, :3, :, :], reversed_k)
 
-        reversed_latents_w = reversed_latents_w.to(text_embeddings.dtype).to("cuda")
+        reversed_latents_w = reversed_latents_w.to(null_text_embeddings.dtype).to("cuda")
         acc_metric = gs.eval_watermark(reversed_latents_w)
         print(k_check, acc_metric)
         ksr += k_check
